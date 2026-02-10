@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { BonusController } from "./bonus.controller";
 import { authMiddleware } from "../../middlewares/auth.middleware";
+import { NotificationController } from "./notification.controller";
 
 const router = Router();
 
-router.post("/apply", authMiddleware, BonusController.applyBonus);
+router.post("/create", authMiddleware, NotificationController.create);
 
 export default router;
