@@ -4,18 +4,18 @@ import { AdminService } from "./admin.service";
 export class AdminController {
   static async createAdmin(req: Request, res: Response) {
     try {
-      const { username, password, roleId } = req.body;
+      const { username, password, role_id } = req.body;
 
-      if (!username || !password || !roleId) {
+      if (!username || !password || !role_id) {
         return res.status(400).json({
-          message: "username, password and roleId are required",
+          message: "username, password and role_id are required",
         });
       }
 
       const admin = await AdminService.createAdmin(
         username,
         password,
-        Number(roleId),
+        Number(role_id),
       );
 
       return res.status(201).json({
@@ -23,7 +23,7 @@ export class AdminController {
         admin: {
           id: admin.id,
           username: admin.username,
-          roleId: admin.roleId,
+          role_id: admin.role_id,
         },
       });
     } catch (error: any) {

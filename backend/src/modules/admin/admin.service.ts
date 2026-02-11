@@ -12,13 +12,13 @@ export class AdminService {
       throw new Error("Admin already exists");
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const password_hash = await bcrypt.hash(password, 10);
 
     const admin = await prisma.admin.create({
       data: {
         username,
-        passwordHash,
-        roleId,
+        password_hash,
+        role_id: roleId,
         status: "active",
       },
     });
@@ -34,7 +34,7 @@ export class AdminService {
         id: true,
         username: true,
         status: true,
-        createdAt: true,
+        created_at: true,
         role: {
           select: {
             name: true,

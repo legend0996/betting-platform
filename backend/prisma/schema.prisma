@@ -5,10 +5,229 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
+  // output removed for v6 default
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int       @id @default(autoincrement())
+  phone         String    @unique
+  email         String?   @unique
+  password_hash String
+  is_verified   Boolean   @default(false)
+  status        String    // active / blocked
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+  wallet        Wallet?
+  bets          Bet[]
+  walletTransactions WalletTransaction[]
+  referrals     Referral[] @relation("UserReferrals")
+  referredBy    Referral[] @relation("UserReferredBy")
+  commissions   Commission[]
+  supportTickets SupportTicket[]
+}
+
+model Wallet {
+  id         Int       @id @default(autoincrement())
+  user_id    Int       @unique
+  balance    Float     @default(0)
+  currency   String    @default("KES")
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  user       User      @relation(fields: [user_id], references: [id])
+  transactions WalletTransaction[]
+}
+
+model WalletTransaction {
+  id             Int      @id @default(autoincrement())
+  wallet_id      Int
+  user_id        Int
+  type           String   // deposit / withdrawal / bet / win / bonus / commission
+  amount         Float
+  balance_before Float
+  balance_after  Float
+  reference_id   String?
+  status         String   // pending / success / failed
+  created_at     DateTime @default(now())
+  wallet         Wallet   @relation(fields: [wallet_id], references: [id])
+  user           User     @relation(fields: [user_id], references: [id])
+}
+
+model SportsCategory {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique
+  status     String   // active / inactive
+  created_at DateTime @default(now())
+  tournaments Tournament[]
+  teams      Team[]
+  matches    Match[]
+}
+
+model Tournament {
+  id           Int      @id @default(autoincrement())
+  category_id  Int
+  name         String
+  status       String   // active / inactive
+  created_at   DateTime @default(now())
+  category     SportsCategory @relation(fields: [category_id], references: [id])
+  matches      Match[]
+}
+
+model Team {
+  id           Int      @id @default(autoincrement())
+  category_id  Int
+  name         String
+  logo_url     String?
+  status       String   // active / inactive
+  created_at   DateTime @default(now())
+  category     SportsCategory @relation(fields: [category_id], references: [id])
+  homeMatches  Match[] @relation("HomeTeam")
+  awayMatches  Match[] @relation("AwayTeam")
+}
+
+model Match {
+  id             Int      @id @default(autoincrement())
+  category_id    Int
+  tournament_id  Int
+  home_team_id   Int
+  away_team_id   Int
+  start_time     DateTime
+  end_time       DateTime?
+  status         String   // scheduled / live / closed
+  home_goals     Int?
+  away_goals     Int?
+  result_set     Boolean  @default(false)
+  created_at     DateTime @default(now())
+  category       SportsCategory @relation(fields: [category_id], references: [id])
+  tournament     Tournament    @relation(fields: [tournament_id], references: [id])
+  homeTeam       Team         @relation("HomeTeam", fields: [home_team_id], references: [id])
+  awayTeam       Team         @relation("AwayTeam", fields: [away_team_id], references: [id])
+  bets           Bet[]
+  betSelections  BetSelection[]
+}
+
+model Bet {
+  id             Int      @id @default(autoincrement())
+  user_id        Int
+  match_id       Int
+  bet_type       String   // 1X2 / OVER_UNDER / BTTS
+  selection      String   // HOME / DRAW / AWAY / OVER_2.5 / YES
+  odds           Float
+  stake          Float
+  potential_win  Float
+  status         String   // pending / win / lose / void
+  created_at     DateTime @default(now())
+  user           User     @relation(fields: [user_id], references: [id])
+  match          Match    @relation(fields: [match_id], references: [id])
+  betSelections  BetSelection[]
+}
+
+model BetSelection {
+  id         Int    @id @default(autoincrement())
+  bet_id     Int
+  match_id   Int
+  selection  String
+  odds       Float
+  result     String // pending / win / lose
+  bet        Bet    @relation(fields: [bet_id], references: [id])
+  match      Match  @relation(fields: [match_id], references: [id])
+}
+
+model Admin {
+  id            Int      @id @default(autoincrement())
+  username      String   @unique
+  password_hash String
+  role_id       Int
+  status        String   // active / disabled
+  created_at    DateTime @default(now())
+  role          Role     @relation(fields: [role_id], references: [id])
+  logs          AdminLog[]
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  admins      Admin[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  role_id       Int
+  permission_id Int
+  role          Role       @relation(fields: [role_id], references: [id])
+  permission    Permission @relation(fields: [permission_id], references: [id])
+  @@id([role_id, permission_id])
+}
+
+model AdminLog {
+  id         Int      @id @default(autoincrement())
+  admin_id   Int
+  action     String
+  entity_type String
+  entity_id  Int
+  created_at DateTime @default(now())
+  admin      Admin    @relation(fields: [admin_id], references: [id])
+}
+
+model Referral {
+  id          Int      @id @default(autoincrement())
+  user_id     Int
+  referred_by Int
+  level       Int
+  created_at  DateTime @default(now())
+  user        User     @relation("UserReferrals", fields: [user_id], references: [id])
+  referredBy  User     @relation("UserReferredBy", fields: [referred_by], references: [id])
+}
+
+model Commission {
+  id             Int      @id @default(autoincrement())
+  user_id        Int
+  source_user_id Int
+  type           String   // deposit / bet / win
+  amount         Float
+  created_at     DateTime @default(now())
+  user           User     @relation(fields: [user_id], references: [id])
+}
+
+model Bonus {
+  id         Int      @id @default(autoincrement())
+  type       String   // deposit_bonus
+  level      Int
+  percentage Float
+  status     String   // active / inactive
+  created_at DateTime @default(now())
+}
+
+model SupportTicket {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  subject    String
+  message    String
+  status     String   // open / closed
+  created_at DateTime @default(now())
+  user       User     @relation(fields: [user_id], references: [id])
+}
+
+model StaticPage {
+  id         Int      @id @default(autoincrement())
+  slug       String   @unique
+  content    String
+  updated_at DateTime @updatedAt
+}
+
+model SystemSetting {
+  id    Int    @id @default(autoincrement())
+  key   String @unique
+  value String
 }

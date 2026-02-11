@@ -6,18 +6,18 @@ const WINDOW_MS = 60 * 1000; // 1 minute
 const MAX_REQUESTS = 100;
 
 export function rateLimiter(req: Request, res: Response, next: NextFunction) {
-  const ip = req.ip;
+  const ip = req.ip || req.connection.remoteAddress || "unknown";
   const now = Date.now();
 
-  const record = requests.get(ip);
+  const record = ip ? requests.get(ip) : undefined;
 
   if (!record) {
-    requests.set(ip, { count: 1, time: now });
+    if (ip) requests.set(ip, { count: 1, time: now });
     return next();
   }
 
   if (now - record.time > WINDOW_MS) {
-    requests.set(ip, { count: 1, time: now });
+    if (ip) requests.set(ip, { count: 1, time: now });
     return next();
   }
 
@@ -28,5 +28,6 @@ export function rateLimiter(req: Request, res: Response, next: NextFunction) {
   }
 
   record.count++;
+  if (ip) requests.set(ip, record);
   next();
 }
